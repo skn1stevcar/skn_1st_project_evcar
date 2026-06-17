@@ -13,11 +13,11 @@ from common.db import get_engine
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_PATH = settings.DATA_DIR / "고속도로_전기차_통행_및_충전데이터.xlsx"
 
-# 적재 기간(날짜) 필터. 충전·통행이 실제로 겹치는 구간만 사용한다.
-#   - 충전: 2023-01~2025-08, 통행: 2024-10~2025-09
-#   - 겹치는 구간 = 2024-10 ~ 2025-08 (비교 탭 날짜 조인이 빈틈없이 동작)
-# 전체를 적재하려면 DATE_START = None 으로 바꾼다.
-DATE_START = "2024-10-01"
+# 적재 기간(날짜) 필터. data/ 의 작업용 엑셀은 이미 최근 3개월(2025-06~08)로
+# 잘라둔 파일이며, 본 필터는 그 범위를 재확인하는 안전장치다.
+# 원본 전체는 data/...(원본).xlsx (LFS). 더 넓게 보려면 DATA_PATH 를 원본으로,
+# DATE_START 를 원하는 날짜(또는 None)로 바꾼다.
+DATE_START = "2025-06-01"
 DATE_END = "2025-08-31"
 
 
