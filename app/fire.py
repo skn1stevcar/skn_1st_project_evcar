@@ -9,6 +9,8 @@ import plotly.express as px
 from common.config import settings
 from common.db import get_engine
 
+import datetime
+
 # 1. 페이지 설정 및 제목
 st.set_page_config(page_title="전기차 화재 분석 대시보드", page_icon="🔥", layout="wide")
 st.title("🔥 전기차 화재 발생 현황 멀티 분석 대시보드")
@@ -35,33 +37,154 @@ df_raw = load_data()
 # --------------------------------------------
 st.sidebar.header("🔎 데이터 상세 필터링")
 
-# (1) 화재발생연도 & 월 필터
-all_years = sorted(df_raw['fire_year'].unique().tolist())
-all_months = sorted(df_raw['fire_month'].unique().tolist())
+# 부동소수점 오차를 원천 차단하기 위해 100% 정확한 정수형 YYYYMM 코드 생성
+# 예: 2024년 5월 -> 202405 / 2024년 12월 -> 202412
+df_raw['time_score'] = (df_raw['fire_year'] * 100) + df_raw['fire_month']
 
-selected_years = st.sidebar.multiselect("📆 발생 연도 선택", all_years, default=all_years)
-selected_months = st.sidebar.multiselect("📆 발생 월 선택", all_months, default=all_months)
-
-# (2) 시도(지역) 필터
+# 데이터의 최소/최대 연도 추출 (기본값 설정용)
+min_y, max_y = int(df_raw['fire_year'].min()), int(df_raw['fire_year'].max())
 all_sido = sorted(df_raw['sido'].unique().tolist())
-selected_sido = st.sidebar.multiselect("📍 지역(시도) 선택", all_sido, default=all_sido)
-
-# (3) 발화요인 대분류 필터
 all_causes = sorted(df_raw['ignition_main_category'].dropna().unique().tolist())
-selected_causes = st.sidebar.multiselect("⚡ 발화요인 대분류 선택", all_causes, default=all_causes)
 
-# 사용자가 선택한 조건에 따라 데이터를 실시간 필터링
+# 안전한 상단 세션 상태 초기화 (루프 밖에서 미리 선언)
+if "sido_master" not in st.session_state:
+    st.session_state["sido_master"] = True
+if "cause_master" not in st.session_state:
+    st.session_state["cause_master"] = True
+
+for sido in all_sido:
+    if f"chk_{sido}" not in st.session_state:
+        st.session_state[f"chk_{sido}"] = True
+
+for cause in all_causes:
+    if f"chk_{cause}" not in st.session_state:
+        st.session_state[f"chk_{cause}"] = True
+
+# 마스터 체크박스 토글 시 하위 체크박스 상태를 강제 동기화하는 콜백 함수
+def toggle_all_sido():
+    for sido in all_sido:
+        st.session_state[f"chk_{sido}"] = st.session_state.sido_master
+
+def toggle_all_causes():
+    for cause in all_causes:
+        st.session_state[f"chk_{cause}"] = st.session_state.cause_master
+
+# --------------------------------------------
+# (1) 발생 연도 & 월 필터 (달력 vs 직접 입력 혼용 인터페이스)
+# --------------------------------------------
+st.sidebar.markdown("### 📆 기간 설정")
+date_mode = st.sidebar.radio("입력 방식", ["📆 달력 범위 선택", "📝 연/월 직접 입력"], horizontal=True)
+
+if date_mode == "📆 달력 범위 선택":
+    st.sidebar.markdown("<br><br><br>", unsafe_allow_html=True)
+    # 달력 위젯으로 시작일과 종료일 범위 선택
+    selected_range = st.sidebar.date_input(
+        "조회 기간 지정",
+        value=(datetime.date(min_y, 1, 1), datetime.date(max_y, 12, 31)),
+        min_value=datetime.date(2010, 1, 1),
+        max_value=datetime.date(2030, 12, 31),
+        format="YYYY-MM-DD"
+    )
+
+    # 시작일과 종료일이 모두 선택되었을 때 변수 저장
+    if isinstance(selected_range, (tuple, list)) and len(selected_range) == 2:
+        start_date, end_date = selected_range
+        start_score = (start_date.year * 100) + start_date.month
+        end_score = (end_date.year * 100) + end_date.month
+    else:
+        # 단일 날짜만 클릭된 순간의 방어 코드
+        start_score = (min_y * 100) + 1
+        end_score = (max_y * 100) + 12
+
+else:
+    # 숫자 입력기(yyyy, mm) 혼용 구성
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        start_y = st.number_input("시작 연도(YYYY)", min_value=2010, max_value=2030, value=min_y, step=1)
+        start_m = st.number_input("시작 월(MM)", min_value=1, max_value=12, value=1, step=1)
+    with col2:
+        end_y = st.number_input("종료 연도(YYYY)", min_value=2010, max_value=2030, value=max_y, step=1)
+        end_m = st.number_input("종료 월(MM)", min_value=1, max_value=12, value=12, step=1)
+
+    start_score = (start_y * 100) + start_m
+    end_score = (end_y * 100) + end_m
+
+# --------------------------------------------
+# (2) 지역(시도) 필터 (Expander + 마스터 체크박스)
+# --------------------------------------------
+with st.sidebar.expander("📍 지역(시도) 선택", expanded=False):
+    # all_sido = sorted(df_raw['sido'].unique().tolist())
+
+    # 전체 선택/해제 마스터 토글
+    sido_master = st.checkbox("전체 선택 / 해제", key="sido_master", on_change=toggle_all_sido)
+
+    selected_sido = []
+    for sido in all_sido:
+        if st.checkbox(sido, key=f"chk_{sido}"):
+            selected_sido.append(sido)
+        # # 마스터 체크박스의 상태를 기본값으로 동기화
+        # if st.checkbox(sido, value=sido_master, key=f"chk_{sido}"):
+        #     selected_sido.append(sido)
+
+# --------------------------------------------
+# (3) 발화요인 대분류 필터 (Expander + 마스터 체크박스)
+# --------------------------------------------
+with st.sidebar.expander("⚡ 발화요인 대분류 선택", expanded=False):
+    # all_causes = sorted(df_raw['ignition_main_category'].dropna().unique().tolist())
+
+    # 전체 선택/해제 마스터 토글
+    cause_master = st.checkbox("전체 선택 / 해제", key="cause_master", on_change=toggle_all_causes)
+
+    selected_causes = []
+    for cause in all_causes:
+        if st.checkbox(cause, key=f"chk_{cause}"):
+            selected_causes.append(cause)
+        # if st.checkbox(cause, value=cause_master, key=f"chk_{cause}"):
+        #     selected_causes.append(cause)
+
+# --------------------------------------------
+# (4) 실시간 최종 데이터 필터링 로직 수행
+# --------------------------------------------
+# 하나도 선택 안 했을 때 화면이 깨지는 것을 방지하기 위한 방어 조건 포함
+if not selected_sido:
+    selected_sido = ["무효한지역값"]
+if not selected_causes:
+    selected_causes = ["무효한원인값"]
+
 df = df_raw[
-    (df_raw['fire_year'].isin(selected_years)) &
-    (df_raw['fire_month'].isin(selected_months)) &
+    (df_raw['time_score'] >= start_score) &
+    (df_raw['time_score'] <= end_score) &
     (df_raw['sido'].isin(selected_sido)) &
     (df_raw['ignition_main_category'].isin(selected_causes))
 ]
 
-# 데이터가 텅 비었을 경우를 대비한 예외 안내
-if df.empty:
-    st.warning("선택하신 필터 조건에 일치하는 화재 데이터가 없습니다. 사이드바 조건을 다시 조정해 주세요.")
-    st.stop()
+# # (1) 화재발생연도 & 월 필터
+# all_years = sorted(df_raw['fire_year'].unique().tolist())
+# all_months = sorted(df_raw['fire_month'].unique().tolist())
+#
+# selected_years = st.sidebar.multiselect("📆 발생 연도 선택", all_years, default=all_years)
+# selected_months = st.sidebar.multiselect("📆 발생 월 선택", all_months, default=all_months)
+#
+# # (2) 시도(지역) 필터
+# all_sido = sorted(df_raw['sido'].unique().tolist())
+# selected_sido = st.sidebar.multiselect("📍 지역(시도) 선택", all_sido, default=all_sido)
+#
+# # (3) 발화요인 대분류 필터
+# all_causes = sorted(df_raw['ignition_main_category'].dropna().unique().tolist())
+# selected_causes = st.sidebar.multiselect("⚡ 발화요인 대분류 선택", all_causes, default=all_causes)
+#
+# # 사용자가 선택한 조건에 따라 데이터를 실시간 필터링
+# df = df_raw[
+#     (df_raw['fire_year'].isin(selected_years)) &
+#     (df_raw['fire_month'].isin(selected_months)) &
+#     (df_raw['sido'].isin(selected_sido)) &
+#     (df_raw['ignition_main_category'].isin(selected_causes))
+# ]
+#
+# # 데이터가 텅 비었을 경우를 대비한 예외 안내
+# if df.empty:
+#     st.warning("선택하신 필터 조건에 일치하는 화재 데이터가 없습니다. 사이드바 조건을 다시 조정해 주세요.")
+#     st.stop()
 
 # --------------------------------------------
 # 4. 상단 요약 지표 (Metrics) 구역 생성
