@@ -26,6 +26,24 @@ CREATE TABLE IF NOT EXISTS faq (
   COMMENT='자동차 관련 사이트 FAQ(출처별 통합)';
 
 -- ------------------------------------------------------------
+--  [신가을] 전기차 화재 발생 현황 통합 테이블 (역정규화 빌드)
+-- ------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `ev_fire_records` (
+    `id`                     INT AUTO_INCREMENT  NOT NULL COMMENT '화재사고 고유 ID',
+    `fire_year`              INT                 NOT NULL COMMENT '화재발생연',
+    `fire_month`             INT                 NOT NULL COMMENT '월',
+    `sido`                   VARCHAR(50)         NOT NULL COMMENT '시도',
+    `ignition_main_category` VARCHAR(50)         NOT NULL COMMENT '발화요인 대분류',
+    `ignition_sub_category`  VARCHAR(100)        NOT NULL COMMENT '발화요인 소분류',
+    `vehicle_location`       VARCHAR(50)         NULL     COMMENT '차량장소',
+    `ground_level`           VARCHAR(20)         NULL     COMMENT '지상지하',
+    `vehicle_status`         VARCHAR(50)         NULL     COMMENT '차량상태',
+    `ignition_point`         VARCHAR(50)         NULL     COMMENT '차량발화지점',
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='전기차 화재 발생 현황 통합';
+
+-- ------------------------------------------------------------
 --  [팀원 추가 영역] 본인 데이터셋 테이블을 여기에 정의하세요.
 --  예) CREATE TABLE IF NOT EXISTS ev_charger ( ... );
 -- ------------------------------------------------------------
