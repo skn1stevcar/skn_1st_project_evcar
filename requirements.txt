@@ -5,3 +5,6 @@ streamlit
 SQLAlchemy
 PyMySQL
 python-dotenv
+plotly
+openpyxl
+pydeck
