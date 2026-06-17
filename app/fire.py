@@ -73,17 +73,59 @@ with col1:
     st.metric(label="🚨 총 화재 발생", value=f"{len(df)} 건", delta=f"전체 {len(df_raw)}건 중")
 
 with col2:
-    top_reg = df['sido'].value_counts().idxmax()
+    top_reg = df['sido'].value_counts().idxmax() if not df.empty else "데이터 없음"
     st.metric(label="📍 최다 발생 지역", value=top_reg)
 
 with col3:
-    top_cause = df['ignition_main_category'].value_counts().idxmax()
+    top_cause = df['ignition_main_category'].value_counts().idxmax() if not df.empty else "데이터 없음"
     st.metric(label="⚡ 주요 발화 원인", value=top_cause)
 
 with col4:
     # 가장 화재가 많이 발생한 차량 상태 (주차, 충전, 운행 등)
-    top_status = df['vehicle_status'].value_counts().idxmax()
+    top_status = df['vehicle_status'].value_counts().idxmax() if not df.empty else "데이터 없음"
     st.metric(label="🚗 최다 화재 시 차량 상태", value=top_status)
+
+# # 요약 지표 바로 아래에 시각적 분석을 돕는 미니 차트 2종 배치
+# if not df.empty:
+#     st.write("")  # 약간의 공백 시각적 배치
+#     sub_col1, sub_col2 = st.columns(2)
+#
+#     with sub_col1:
+#         st.markdown("##### 🗺️ 지역별 화재 발생 순위 (Top 5)")
+#         # 시도별 건수 집계 후 상위 5개 추출
+#         df_sido = df['sido'].value_counts().reset_index(name='건수').head(5)
+#
+#         fig_sido = px.bar(df_sido,
+#                           x='건수',
+#                           y='sido',
+#                           orientation='h',  # 가로 막대 그래프
+#                           color='건수',
+#                           color_continuous_scale='Reds',
+#                           custom_data=['sido'])
+#
+#         # 툴팁 및 레이아웃 깔끔하게 정리
+#         fig_sido.update_traces(hovertemplate="<b>%{customdata[0]}</b><br>화재 건수: %{x}건<extra></extra>")
+#         fig_sido.update_layout(yaxis={'categoryorder': 'total ascending'},
+#                                xaxis_title=None, yaxis_title=None,
+#                                coloraxis_showscale=False, height=200, margin=dict(l=0, r=0, t=10, b=10))
+#         st.plotly_chart(fig_sido, use_container_width=True)
+#
+#     with sub_col2:
+#         st.markdown("##### 📆 월별 화재 발생 추이️")
+#         # 월별 건수 집계 및 정렬 (1~12월 순서 보장)
+#         df_month = df['fire_month'].value_counts().reset_index(name='건수')
+#         df_month = df_month.sort_values(by='fire_month')
+#         df_month['fire_month'] = df_month['fire_month'].astype(str) + "월"
+#
+#         fig_month = px.line(df_month,
+#                             x='fire_month',
+#                             y='건수',
+#                             markers=True,  # 꺾은 선에 점 표시
+#                             color_discrete_sequence=['#FF4B4B'])
+#
+#         fig_month.update_traces(hovertemplate="<b>%{x}</b><br>화재 건수: %{y}건<extra></extra>")
+#         fig_month.update_layout(xaxis_title=None, yaxis_title=None, height=200, margin=dict(l=0, r=0, t=10, b=10))
+#         st.plotly_chart(fig_month, use_container_width=True)
 
 st.write("---")
 
@@ -180,11 +222,20 @@ fig_stack = px.bar(df_counts,
                    x='vehicle_status',
                    y='건수',
                    color='ignition_main_category',
+                   # 툴팁(hover)에서 사용할 데이터를 costom_data로 명시적으로 지정
+                   custom_data=['ignition_main_category'],
                    labels={'vehicle_status': '차량 상태', 'ignition_main_category': '발화요인 대분류', '건수': '건수'},
                    barmode='stack',
                    text='건수')  # 막대 조각 내부에 숫자를 표시하는 옵션
 
 # 막대 내부 숫자 포맷 및 위치 세부 설정
+# hovertemplate을 추가하여 차량 상태(x축 데이터)를 제외하고 대분류와 건수만 노출
+fig_stack.update_traces(
+    texttemplate='%{text}',
+    textposition='inside',
+    hovertemplate="<b>%{customdata[0]}</b><br>화재 건수: %{y}<extra></extra>"
+)
+
 fig_stack.update_traces(texttemplate='%{text}', textposition='inside')
 
 st.plotly_chart(fig_stack, use_container_width=True)
