@@ -10,18 +10,20 @@ DB 접속이 안 되면 data/faq.json 으로 자동 폴백한다.
 """
 
 import json
-import os
 import re
+import sys
 from pathlib import Path
 
-import pandas as pd
-import streamlit as st
-from dotenv import load_dotenv
-from sqlalchemy import create_engine
+# 공용 모듈(common) import 를 위해 프로젝트 루트를 경로에 추가
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-ROOT = Path(__file__).resolve().parents[1]
-JSON_PATH = ROOT / "data" / "faq.json"
-load_dotenv(ROOT / ".env")
+import pandas as pd  # noqa: E402
+import streamlit as st  # noqa: E402
+
+from common.config import settings  # noqa: E402
+from common.db import get_engine  # noqa: E402
+
+JSON_PATH = settings.DATA_DIR / "faq.json"
 
 st.set_page_config(page_title="ev_infra · FAQ 검색", page_icon="🚗", layout="wide")
 
@@ -31,15 +33,7 @@ st.set_page_config(page_title="ev_infra · FAQ 검색", page_icon="🚗", layout
 def load_faq():
     """DB(ev_infra.faq) 우선, 실패 시 data/faq.json 폴백."""
     try:
-        user = os.getenv("DB_USER", "root")
-        pw = os.getenv("DB_PASSWORD", "")
-        host = os.getenv("DB_HOST", "localhost")
-        port = os.getenv("DB_PORT", "3306")
-        name = os.getenv("DB_NAME", "ev_infra")
-        engine = create_engine(
-            f"mysql+pymysql://{user}:{pw}@{host}:{port}/{name}?charset=utf8mb4"
-        )
-        df = pd.read_sql("SELECT id, category, question, answer, modified FROM faq", engine)
+        df = pd.read_sql("SELECT id, source, category, question, answer, modified FROM faq", get_engine())
         df["modified"] = df["modified"].astype(str).replace("NaT", "")
         return df.to_dict("records"), "MySQL(ev_infra.faq)"
     except Exception:
@@ -57,7 +51,9 @@ def highlight(text, keyword):
     return safe.replace("\n", "<br>")
 
 
-def match(item, keyword, scope, categories):
+def match(item, keyword, scope, sources, categories):
+    if sources and item.get("source") not in sources:
+        return False
     if categories and item.get("category") not in categories:
         return False
     if not keyword:
@@ -75,6 +71,8 @@ st.markdown(
       .faq-card-q { font-size:1.02rem; font-weight:600; line-height:1.5; }
       .faq-cate { display:inline-block; padding:2px 10px; border-radius:12px;
         background:#eef4ff; color:#2563eb; font-size:0.78rem; font-weight:600; margin-right:8px; }
+      .faq-source { display:inline-block; padding:2px 10px; border-radius:12px;
+        background:#f0fdf4; color:#16a34a; font-size:0.78rem; font-weight:600; margin-right:8px; }
       .faq-meta { color:#888; font-size:0.78rem; }
       .faq-answer { background:#fafafa; border-left:3px solid #2563eb; border-radius:6px;
         padding:14px 16px; line-height:1.7; font-size:0.93rem; color:#1a1a2e; }
@@ -97,15 +95,20 @@ if not data:
     st.stop()
 
 # ----------------------------------------------------------------- 검색 입력
-all_categories = sorted({d["category"] for d in data if d.get("category")})
+all_sources = sorted({d["source"] for d in data if d.get("source")})
 c1, c2 = st.columns([3, 1])
 with c1:
     keyword = st.text_input("🔎 검색어", placeholder="예: 자동차검사, 과태료, 유효기간 …")
 with c2:
     scope = st.radio("검색 범위", ["제목+내용", "제목", "내용"], horizontal=True)
+
+sel_sources = st.multiselect("출처 사이트 필터", all_sources, default=[])
+
+filtered_by_source = [d for d in data if not sel_sources or d.get("source") in sel_sources]
+all_categories = sorted({d["category"] for d in filtered_by_source if d.get("category")})
 sel_categories = st.multiselect("카테고리 필터", all_categories, default=[])
 
-results = [d for d in data if match(d, keyword, scope, sel_categories)]
+results = [d for d in data if match(d, keyword, scope, sel_sources, sel_categories)]
 
 left, right = st.columns([1, 1])
 left.markdown(f"**검색 결과: {len(results)}건** / 전체 {len(data)}건")
@@ -120,10 +123,12 @@ if not results:
 # ----------------------------------------------------------------- 렌더링
 def render_card(item):
     cate = item.get("category") or "기타"
+    src = item.get("source") or ""
     date = item.get("modified") or "-"
     with st.expander(f"[{cate}] {item['question']}"):
         st.markdown(
             f"<span class='faq-cate'>{cate}</span>"
+            f"<span class='faq-source'>{src}</span>"
             f"<span class='faq-meta'>마지막 수정일 {date} · No.{item['id']}</span>"
             f"<div class='faq-card-q' style='margin-top:8px'>Q. {highlight(item['question'], keyword)}</div>",
             unsafe_allow_html=True,
@@ -154,9 +159,12 @@ else:  # 슬라이드형
                 f"{st.session_state.slide_idx + 1} / {len(results)}</div>", unsafe_allow_html=True)
 
     item = results[st.session_state.slide_idx]
-    cate, date = item.get("category") or "기타", item.get("modified") or "-"
+    cate = item.get("category") or "기타"
+    src = item.get("source") or ""
+    date = item.get("modified") or "-"
     st.markdown(
         f"<span class='faq-cate'>{cate}</span>"
+        f"<span class='faq-source'>{src}</span>"
         f"<span class='faq-meta'>마지막 수정일 {date} · No.{item['id']}</span>"
         f"<div class='faq-card-q' style='margin:10px 0 14px'>Q. {highlight(item['question'], keyword)}</div>",
         unsafe_allow_html=True,
