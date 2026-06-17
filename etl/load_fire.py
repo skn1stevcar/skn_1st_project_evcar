@@ -69,6 +69,8 @@ try:
 
             # 4. 대량 데이터를 한 번에 안전하게 삽입 (Bulk Insert)
             if data_to_insert:
+                # 재실행 시 중복 누적(예: 두 번 돌리면 146건) 방지 — 기존 데이터 비우고 새로 적재
+                cursor.execute("TRUNCATE TABLE ev_fire_records")
                 cursor.executemany(insert_query, data_to_insert)
                 db_connection.commit()
                 print(f"성공: 총 {len(data_to_insert)}건의 데이터가 DB에 정상 입력되었습니다.")
