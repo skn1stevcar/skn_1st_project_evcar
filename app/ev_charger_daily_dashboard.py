@@ -102,33 +102,52 @@ def load_tab2_data():
 # --- 🗂️ 대시보드 탭 레이아웃 구성 ---
 st.title("⚡ 전국 전기차 인프라 분석 대시보드")
 st.write("---")
-tab1, tab2, tab3, tab4 = st.tabs(["🗺️ [탭1] 충전 수요 지도", "📈 [탭2] 통행량 vs 충전 수요", "🚗 [탭3] 통행량 분석", "📊 [탭4] 상세 분석"])
+tab1, tab2 = st.tabs(["🗺️ [탭1] 충전 수요 지도", "📈 [탭2] 통행량 vs 충전 수요"])
 
 # =========================================================================
-# [탭1] 전국 전기차 충전소 인프라 수요 지도 구현 구역
+# [탭1] 전국 전기차 충전소 인프라 수요 지도 구현 구역 (검색 기능 추가 완료)
 # =========================================================================
 with tab1:
     st.subheader("🗺️ 전국 전기차 충전소 인프라 수요 지도")
     try:
         df_tab1 = load_tab1_data()
+
+        # 🔍 충전소 요약 데이터 위에 검색창 배치
+        search_keyword = st.text_input("🔍 검색하고 싶은 충전소를 입력하세요", "")
+
+        # 입력한 검색어가 있을 경우 데이터 필터링 (충전소명 또는 주소에 포함된 경우)
+        if search_keyword:
+            df_filtered_tab1 = df_tab1[
+                df_tab1['station_name'].str.contains(search_keyword, case=False, na=False) |
+                df_tab1['address'].str.contains(search_keyword, case=False, na=False)
+                ].copy()
+        else:
+            df_filtered_tab1 = df_tab1.copy()
+
         col1, col2 = st.columns([1, 2])
 
         with col1:
             st.subheader("📊 충전소별 요약 데이터")
-            st.dataframe(df_tab1, use_container_width=True, height=500, column_config={
-                    "station_name": "🔋 충전소명",
-                    "address": "📍 주소",
-                    "total_count": "📊 총 충전건수",
-                    "total_amt": "⚡ 총 충전용량 (kW)"
-                })
+
+            # 인덱스를 1부터 매기기
+            df_filtered_tab1.index = range(1, len(df_filtered_tab1) + 1)
+            # 전체 데이터 대신 필터링된 데이터프레임(df_filtered_tab1)을 보여줍니다.
+            st.dataframe(df_filtered_tab1, use_container_width=True, height=500, column_config={
+                "station_name": "🔋 충전소명",
+                "address": "📍 주소",
+                "total_count": "📊 총 충전건수",
+                "total_amt": "⚡ 총 충전용량 (kW)"
+            })
 
         with col2:
             st.subheader("🗺️ 위치 시각화 지도")
-            if not df_tab1.empty:
-                start_lat, start_lng = get_coordinates(df_tab1.iloc[0]['address'])
+            if not df_filtered_tab1.empty:
+                # 검색된 결과 중 첫 번째 데이터의 주소를 기준으로 지도 중심점 설정
+                start_lat, start_lng = get_coordinates(df_filtered_tab1.iloc[0]['address'])
                 my_map = folium.Map(location=[start_lat or 37.5665, start_lng or 126.9780], zoom_start=9)
 
-                for index, row in df_tab1.iterrows():
+                # 지도 마커도 필터링된 데이터만 표시
+                for index, row in df_filtered_tab1.iterrows():
                     lat, lng = get_coordinates(row['address'])
                     if lat and lng:
                         popup_html = f"""
@@ -149,7 +168,8 @@ with tab1:
 
                 st_folium(my_map, width="100%", height=500)
             else:
-                st.warning("DB에 표시할 데이터가 없습니다.")
+                st.warning("🔍 검색 조건과 일치하는 충전소 데이터가 없습니다.")
+
     except Exception as e:
         st.error(f"❌ 탭1 데이터베이스 연동 중 에러 발생: {e}")
 
@@ -211,11 +231,3 @@ with tab2:
         else:
             st.error("선택한 기간 범위에 유효한 데이터가 없습니다.")
 
-# [탭3] 및 [탭4] 구조 대기 구역
-with tab3:
-    st.title("🚗 [탭3] 고속도로 전기차 통행량 심층 분석")
-    st.info("다음 빌드 단계에서 구현할 페이지입니다.")
-
-with tab4:
-    st.title("📊 [탭4] 충전 수요 상세 분석 (Drill-down)")
-    st.info("마지막 단계에서 구현할 고도화 페이지입니다.")
