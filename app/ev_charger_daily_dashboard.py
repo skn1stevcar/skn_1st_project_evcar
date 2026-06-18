@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import sys
 from pathlib import Path
 import streamlit as st
@@ -8,6 +9,7 @@ import folium
 from streamlit_folium import st_folium
 import plotly.express as px
 import plotly.graph_objects as go
+from dotenv import load_dotenv
 
 # 🎯 common 폴더를 찾기 위한 프로젝트 루트 경로 추가
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -16,8 +18,9 @@ from common.db import get_engine
 # 기본 페이지 레이아웃 설정
 st.set_page_config(layout="wide", page_title="전기차 인프라 분석 대시보드", page_icon="⚡")
 
-# 카카오 API 키 설정
-KAKAO_REST_KEY = "8013c16af7cda089576267cf470c876e"
+# 카카오 API 키 (.env 의 KAKAO_REST_API_KEY 사용 — 코드에 키를 하드코딩하지 않는다)
+load_dotenv()
+KAKAO_REST_KEY = os.getenv("KAKAO_REST_API_KEY")
 
 
 # --- 🛠️ 탭1용 좌표 변환 함수 ---
