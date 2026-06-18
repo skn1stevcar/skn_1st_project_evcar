@@ -1,4 +1,4 @@
-# app/pages/3_EV_Charging_Demand.py
+# app/pages/2_EV_Charging_Demand.py
 """EV 통행량과 충전 수요 분석 화면.
 
 작성: 김혜리 (대시보드 설계·분석 로직)
@@ -18,80 +18,10 @@ import pydeck as pdk
 import streamlit as st
 
 from common.db import get_engine
+from common.ui import inject_theme
 
 st.set_page_config(page_title="EV 충전 수요 대시보드", layout="wide")
-
-st.markdown(
-    """
-    <style>
-      html, body, [class*="css"], [data-testid="stAppViewContainer"] {
-        font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-      }
-      [data-testid="stAppViewContainer"] {
-        background: #FFFFFF;
-      }
-      .main .block-container {
-        padding-top: 2.2rem;
-        padding-bottom: 2rem;
-      }
-      h1 {
-        font-weight: 850 !important;
-        letter-spacing: 0 !important;
-        color: #2563EB;
-      }
-      h2, h3 {
-        letter-spacing: 0 !important;
-        color: #111827;
-      }
-      [data-testid="stRadio"] > label {
-        font-weight: 750;
-        color: #111827;
-      }
-      [data-testid="stRadio"] div[role="radiogroup"] {
-        gap: 0.55rem;
-      }
-      [data-testid="stRadio"] div[role="radiogroup"] label {
-        background: #FFFFFF;
-        border: 1px solid #E5E7EB;
-        border-radius: 999px;
-        padding: 0.32rem 0.85rem;
-        box-shadow: 0 2px 8px rgba(17, 24, 39, 0.04);
-        color: #6B7280;
-      }
-      [data-testid="stRadio"] div[role="radiogroup"] label:hover {
-        background: #F8FAFC;
-        border-color: #2563EB;
-        color: #2563EB;
-      }
-      [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) {
-        background: #2563EB;
-        border-color: #2563EB;
-        color: #FFFFFF;
-        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
-      }
-      [data-testid="stCheckbox"] label {
-        background: #FFFFFF;
-        border: 1px solid #E5E7EB;
-        border-radius: 10px;
-        padding: 0.28rem 0.62rem;
-        box-shadow: 0 2px 8px rgba(17, 24, 39, 0.04);
-      }
-      [data-testid="stCheckbox"] label:hover {
-        border-color: #06B6D4;
-        background: #F8FAFC;
-      }
-      [data-testid="stVegaLiteChart"],
-      [data-testid="stDeckGlJsonChart"] {
-        border: 1px solid #E5E7EB;
-        border-radius: 14px;
-        padding: 0.35rem;
-        background: #FFFFFF;
-        box-shadow: 0 10px 24px rgba(17, 24, 39, 0.07);
-      }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+inject_theme()
 
 
 DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "고속도로_전기차_통행_및_충전데이터.xlsx"

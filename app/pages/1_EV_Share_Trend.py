@@ -17,8 +17,10 @@ from plotly.subplots import make_subplots
 
 from common.config import settings
 from common.db import get_engine
+from common.ui import inject_theme
 
 st.set_page_config(page_title="대한민국 전기차 비중 트렌드", layout="wide")
+inject_theme()
 
 TARGET_MONTHS = ['2024-08', '2024-09', '2024-10', '2024-11', '2024-12', '2025-01', '2025-02']
 

@@ -1,4 +1,4 @@
-# app/pages/2_EV_Fire_Incidents.py
+# app/pages/3_EV_Fire_Incidents.py
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # pages/ → app/ → 프로젝트 루트
@@ -8,11 +8,13 @@ import streamlit as st
 import plotly.express as px
 from common.config import settings
 from common.db import get_engine
+from common.ui import inject_theme
 
 import datetime
 
 # 1. 페이지 설정 및 제목
 st.set_page_config(page_title="전기차 화재 분석 대시보드", page_icon="🔥", layout="wide")
+inject_theme()
 st.title("🔥 전기차 화재 발생 현황 멀티 분석 대시보드")
 st.markdown("소방청 데이터를 기반으로 한 대한민국 전기차 화재 통계입니다.")
 st.markdown("사이드바의 필터를 변경하면 전체 대시보드의 데이터가 실시간으로 필터링 됩니다.")
