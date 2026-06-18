@@ -1,6 +1,9 @@
 # app/pages/3_EV_Charging_Demand.py
 """EV 통행량과 충전 수요 분석 화면.
 
+작성: 김혜리 (대시보드 설계·분석 로직)
+정리: 공용 모듈(common) 적용 · 페이지 구조/위치 정비
+
 ev_infra DB(ev_charging_analysis / ev_traffic_analysis / ev_charging_map_analysis)를
 읽어 충전소 위치·통행량·충전 수요를 함께 본다. 공용 모듈(common)로 DB에 접속한다.
 """
